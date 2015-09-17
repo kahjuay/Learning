@@ -3,6 +3,9 @@ library(plyr)
 library(dplyr)
 library(fitbitScraper)
 
+# http://www.r-bloggers.com/hey-fitbit-my-data-belong-to-me/
+#hr_data = list(time = c(), hrate = c())
+
 cookie = login("kahjuay@gmail.com", "jiarui12", rememberMe = TRUE)
 startdate = as.Date('2015-08-07', format = "%Y-%m-%d")
 enddate = today()
