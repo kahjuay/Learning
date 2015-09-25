@@ -7,7 +7,7 @@ library(fitbitScraper)
 #hr_data = list(time = c(), hrate = c())
 
 cookie = login("kahjuay@gmail.com", "jiarui12", rememberMe = TRUE)
-startdate = as.Date('2015-08-07', format = "%Y-%m-%d")
+startdate = as.Date('2015-08-19', format = "%Y-%m-%d")
 enddate = today()
 s = seq(startdate, enddate, by="days")
 
@@ -17,7 +17,10 @@ missing.days = which(s %in% completeness$dte == FALSE)
 days.to.process = c(incomp.days, missing.days)
 
 for (i in days.to.process) {
+    #print(s[i])
+    #sprintf("%s",s[i])
     df = get_intraday_data(cookie, "heart-rate", date=sprintf("%s",s[i]))
+    #df = get_intraday_data(cookie, "heart-rate", date=as.character(s[i]))
     names(df) = c("time","hrate")
     
     # If the newly downloaded data are for a day already in
