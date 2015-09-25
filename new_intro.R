@@ -53,6 +53,7 @@ my_factor <- factor(c("M","S","L","L","M"), ordered = TRUE, levels = c("S","M","
 my_list <- list(my_vector, my_matrix, my_factor)
 
 # Construct my_super_list with the four data structures above
-
+my_super_list <- list(my_vector, my_matrix, my_factor,my_list)
 
 # Display structure of my_super_list
+str(my_super_list)
