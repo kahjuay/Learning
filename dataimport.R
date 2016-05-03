@@ -604,3 +604,118 @@ load("wine_local.RData")
 # Print out the summary of the wine data
 summary(wine)
 
+# Load the httr package
+library(httr)
+
+# Get the url, save response to resp
+url <- "http://www.example.com/"
+resp <- GET(url)
+
+# Print resp
+print(resp)
+
+# Get the raw content of resp
+raw_content <- content(resp,as="raw")
+
+# Print the head of content
+head(raw_content)
+
+
+# Get the url
+url <- "https://www.omdbapi.com/?t=Annie+Hall&y=&plot=short&r=json"
+resp <- GET(url)
+
+# Print resp
+print(resp)
+
+# Print content of resp as text
+resp <- GET(url)
+print(content(resp,as="text"))
+
+# Print content of resp
+print(content(resp))
+
+# Load the jsonlite package
+library(jsonlite)
+
+# Convert wine_json to a list: wine
+wine_json <- '{"name":"Chateau Migraine", "year":1997, "alcohol_pct":12.4, "color":"red", "awarded":false}'
+wine <- fromJSON(wine_json)
+
+# Import Quandl data: quandl_data
+quandl_url <- "http://www.quandl.com/api/v1/datasets/IWS/INTERNET_INDIA.json?auth_token=i83asDsiWUUyfoypkgMz"
+
+quandl_data <- fromJSON(quandl_url)
+# Print structure of wine and quandl_data
+str(wine)
+str(quandl_data)
+
+# jsonlite is already loaded
+
+# Experiment 1
+json1 <- '[1, 2, 4, 6]'
+json1 <- '[1, 2, 3, 4, 5, 6]'
+fromJSON(json1)
+
+# Experiment 2
+json2 <- '{"a": [1, 2, 3]}'
+json2 <- '{"a": [1, 2, 3], "b": [4,5,6]}'
+fromJSON(json2)
+
+# Experiment 3
+json3 <- '[[1, 2], [3, 4], [5, 6]]'
+json3 <- '[[1,2],[3,4]]'
+fromJSON(json3)
+
+# Experiment 4
+json4 <- '[{"a": 1, "b": 2}, {"a": 3, "b": 4}]'
+json4 <- '[{"a":1,"b":2},{"a":3,"b":4},{"a":5,"b":6}]'
+fromJSON(json4)
+
+# The package jsonlite is already loaded
+
+# Definition of the URLs
+url_sw4 <- "http://www.omdbapi.com/?i=tt0076759&r=json"
+url_sw3 <- "http://www.omdbapi.com/?i=tt0121766&r=json"
+
+# Import two URLs with fromJSON(): sw4 and sw3
+sw4 <- fromJSON(url_sw4)
+sw3 <- fromJSON(url_sw3)
+
+# Print out the Title element of both lists
+print(sw4$Title)
+print(sw3$Title)
+
+
+# Is the release year of sw4 later than sw3?
+print(sw4$Year > sw3$Year)
+
+
+# jsonlite is already loaded
+
+# URL pointing to the .csv file
+url_csv <- "http://s3.amazonaws.com/assets.datacamp.com/course/importing_data_into_r/water.csv"
+
+# Import the .csv file located at url_csv
+water <- read.csv(url_csv, stringsAsFactors = FALSE)
+
+# Convert the data file according to the requirements
+water_json <- toJSON(water)
+
+# Print out water_json
+print(water_json)
+
+# jsonlite is already loaded
+
+# Convert mtcars to a pretty JSON: pretty_json
+pretty_json <- toJSON(mtcars,pretty=TRUE)
+
+# Print pretty_json
+print(pretty_json)
+
+# Minify pretty_json: mini_json
+mini_json <- minify(pretty_json)
+
+# Print mini_json
+print(mini_json)
+
