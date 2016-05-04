@@ -1,3 +1,11 @@
+'This macro is written by Lee Kah Juay (XBBLJMK) for Standish Singapore.
+'Standish SG has specific data requirements which cannot be changed
+'without affecting other teams on the same shared platform.
+'In addition to Standish SG specific adjustments, this macro adds value to
+'the team by re-arranging and formatting the data in the way that is most
+'effective for the investment team.
+
+
 Option Explicit
 Global intGoodFile As Integer
 Global strMacroFileName As String
@@ -14,7 +22,12 @@ Global strUserName As String
 Const intLastRowConst = 30000
 Const intLastColConst = 1000
 Const intMiddleCol = 9
+Const intSpareCol = 5
 Const intThirdCol = 18
+
+'For Sarah's dashboard
+Global strDashFileName As String
+
 
 Sub Main()
 
@@ -29,7 +42,10 @@ Sub Main()
     End If
 
     ProcessJaci
-    ProcessDetailReport
+    ProcessJaciSelection
+    ProcessJaciOilGas
+    'ProcessDetailReport
+    ProcessDetail2Report
     ProcessDBRiskMIndexExp
     ProcessDBCTDOVSecIndexExp
     ProcessDBCTDOVIndexExp
@@ -60,7 +76,7 @@ Dim intLastCol As Integer
     MakeDBCTDIndexExpSummary
     MakeSectorReportSummary
     MakeHYvsIGSummary
-    
+    MakeChinaBlock
     
     
     
@@ -78,6 +94,80 @@ Dim intLastCol As Integer
 End Sub
 
 
+Sub Main3()
+'Sarah's dashboard
+    strUserName = Right(Application.UserName, Len(Application.UserName) - InStr(Application.UserName, ", ") - 1)
+    
+    'Check for name of Dashboard workbook
+    SwitchWBDash
+    
+    If intGoodFile = 1 Then
+        Exit Sub
+    End If
+    
+    'Check to see only 1 copy of PT report, collect strPTFileName
+    Call SwitchWB("PortTarget")
+    
+    If intGoodFile = 1 Then
+        Exit Sub
+    End If
+    
+    
+    
+    'Move the old data across to old column
+    MoveData
+    
+    'Process Broad Sector block
+    ProcessBroadSector
+    
+    
+    
+End Sub
+
+Sub ProcessBroadSector()
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+Dim intLastCol As Integer
+Dim dblValue As Double
+
+    'Update portfolio CTSD
+    Workbooks(strPTFileName).Worksheets("Sector").Activate
+    intFirstRow = FindExactMatchRow("Total")
+    intLastCol = FindLastCol(intLastColConst, intFirstRow)
+    Cells(intFirstRow, intLastCol).Select
+    dblValue = ActiveCell.Value
+    
+
+    Workbooks(strDashFileName).Worksheets("Dashboard").Activate
+    intFirstRow = FindCountryRow("Broad Sector") - 1
+    Cells(intFirstRow, 2).Select
+    ActiveCell.Value = dblValue
+    
+    
+
+End Sub
+
+
+Sub MoveData()
+    Call MoveDataToOld(strDashFileName, "Dashboard", "Broad Sector", 2, 3, 1)
+    Call MoveDataToOld(strDashFileName, "Dashboard", "Country", 2, 3, 1)
+End Sub
+
+
+Sub MoveDataToOld(strWB As String, strWS As String, strKey As String, intSourceCol As Integer, intTargetCol As Integer, intRowCheck As Integer)
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+
+    Workbooks(strWB).Worksheets(strWS).Activate
+    intFirstRow = FindCountryRow(strKey) '14
+    intLastRow = FindLastRowReversed(intRowCheck, intFirstRow) '20
+    
+    Call CopyBlock(colLtr(intSourceCol) & intFirstRow & ":" & colLtr(intSourceCol) & intLastRow, colLtr(intTargetCol) & intFirstRow, "N")
+    
+End Sub
+
+
+
 Sub SetPrintOut(intLastRow As Integer, intLastCol As Integer)
 Dim strPrintArea As String
 
@@ -87,7 +177,8 @@ Dim strPrintArea As String
     ActiveSheet.PageSetup.PrintArea = strPrintArea
     
     With ActiveSheet.PageSetup
-        .Orientation = xlLandscape
+        '.Orientation = xlLandscape
+        .Orientation = xlPortrait
         .Zoom = False
         .FitToPagesWide = 1
         .FitToPagesTall = 1
@@ -117,7 +208,7 @@ Dim intTempCountryRowEnd As Integer
 Dim intCounter As Integer
 Dim strCountry As String
 Dim strWSName As String
-
+Dim strRange As String
 
     Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
     intFirstRow = FindLastRow(1, intLastRowConst) + 15 '90
@@ -184,11 +275,16 @@ Dim strWSName As String
     Cells(intFirstRow, 6).Value = strFund1 & " YTW"
     Cells(intFirstRow, 7).Value = strFund2 & " YTW"
     
+    strRange = colLtr(2) & intFirstRow + 1 & ":" & colLtr(7) & intCounter
+    Range(strRange).Select
+    Selection.NumberFormat = "0.00"
+    
 End Sub
 
 Sub MakeDBCTDOVYTWIndexExpCTSDBlock()
 Dim intFirstRow As Integer
 Dim strWSName As String
+Dim strRange As String
 
     Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
     
@@ -214,6 +310,9 @@ Dim strWSName As String
     Cells(intFirstRow + 5, intMiddleCol).Value = strFund1
     Cells(intFirstRow + 6, intMiddleCol).Value = strFund2
     
+    strRange = colLtr(intMiddleCol + 7) & intFirstRow + 5 & ":" & colLtr(intMiddleCol + 7) & intFirstRow + 6
+    Range(strRange).Select
+    Selection.NumberFormat = "0.00"
 End Sub
 
 
@@ -241,6 +340,7 @@ End Function
 Sub MakeDBCTDIndexExpSummary()
 Dim intFirstRow As Integer
 Dim strWSName As String
+Dim strRange As String
 
     strWSName = "DurbuckCTD_Index Exposure"
 
@@ -273,6 +373,11 @@ Dim strWSName As String
     Cells(intFirstRow + 6, intMiddleCol).Value = strFund2
     Cells(intFirstRow + 9, intMiddleCol).Value = strFund1
     Cells(intFirstRow + 10, intMiddleCol).Value = strFund2
+    
+    strRange = colLtr(intMiddleCol + 1) & intFirstRow + 5 & ":" & colLtr(intMiddleCol + 7) & intFirstRow + 10
+    Range(strRange).Select
+    Selection.NumberFormat = "0.00"
+    
 End Sub
 
 Sub MakeHYvsIGSummary()
@@ -281,10 +386,12 @@ Dim strData As String
 Dim arrData As Variant
 Dim intCounter As Integer
 Dim strWSName As String
+Dim intLastRow As Integer
+Dim strRange As String
 
     Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
     intFirstRow = FindLastRow(intMiddleCol, intLastRowConst) + 6
-    strWSName = "HYvsIG_Report"
+    strWSName = "HYvsIG"
     
     'Copy the first 2 columns from PT file 1
     Call CopyWBColumn(strPTFile1, strWSName, "Adjustment from", -12, intFirstRow, intMiddleCol, 1, 17)
@@ -319,23 +426,230 @@ Dim strWSName As String
     
     
     'CTD correlated buckets block
-    intFirstRow = FindLastRow(intThirdCol, intLastRowConst)
+    'First row hard coded to 1 to place it next to Broad Summary Block, Spare Column
+    intFirstRow = 1
     
     'Copy the first 2 columns from PT file 1
-    Call CopyWBColumn(strPTFile1, strWSName, "CTD correlated buckets", 0, intFirstRow, intThirdCol)
+    Call CopyWBColumn(strPTFile1, strWSName, "CTD correlated buckets", 0, intFirstRow, intSpareCol)
     
     'Copy Fund 1 CTD
-    Call CopyWBColumn(strPTFile1, strWSName, "CTD correlated buckets", 4, intFirstRow, intThirdCol + 1)
+    Call CopyWBColumn(strPTFile1, strWSName, "CTD correlated buckets", 4, intFirstRow, intSpareCol + 1)
     
     'Copy Fund 2 CTD
-    Call CopyWBColumn(strPTFile2, strWSName, "CTD correlated buckets", 4, intFirstRow, intThirdCol + 2)
+    Call CopyWBColumn(strPTFile2, strWSName, "CTD correlated buckets", 4, intFirstRow, intSpareCol + 2)
     
     'Create headers on first row
-    Cells(intFirstRow, intThirdCol + 1).Value = strFund1 & " CTD"
-    Cells(intFirstRow, intThirdCol + 2).Value = strFund2 & " CTD"
+    Cells(intFirstRow, intSpareCol + 1).Value = strFund1 & " CTD"
+    Cells(intFirstRow, intSpareCol + 2).Value = strFund2 & " CTD"
+    
+    intLastRow = FindLastRow(intSpareCol, 15)
+    
+    strRange = colLtr(intSpareCol + 1) & intFirstRow + 1 & ":" & colLtr(intSpareCol + 2) & intLastRow
+    Range(strRange).Select
+    Selection.NumberFormat = "0.00"
+    
+End Sub
+
+Sub MakeChinaBlock()
+Dim intLastRow As Integer
+Dim intFirstRow As Integer
+Dim strWSName As String
+Dim intCounter As Integer
+Dim strData As String
+Dim arrData As Variant
+Dim intLastCol As Integer
+
+    Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
+    intFirstRow = FindLastRow(intMiddleCol, intLastRowConst) + 7
+    strWSName = "Country"
+    
+    'Sub CopyWBColumn(strPTFile As String, strWSName As String, strKey As String, intOffset As Integer, intTargetRow As Integer, intTargetCol As Integer, Optional intColSizeAdd As Integer = 0, Optional intRowAdd As Integer = 0, Optional intFirstRowAdjust As Integer = 0)
+    
+    'Labelling Headers
+    Cells(intFirstRow, intMiddleCol).Value = "China Active"
+    Cells(intFirstRow, intMiddleCol + 1).Value = strFund1 & " %MV"
+    Cells(intFirstRow, intMiddleCol + 2).Value = strFund2 & " %MV"
+    Cells(intFirstRow, intMiddleCol + 3).Value = strFund1 & " CTSD"
+    Cells(intFirstRow, intMiddleCol + 4).Value = strFund2 & " CTSD"
+    Cells(intFirstRow, intMiddleCol + 5).Value = "Diff %MV"
+    Cells(intFirstRow, intMiddleCol + 6).Value = "Diff CTSD"
+    
+    'Copy the first 2 columns from PT file 1
+    Call CopyWBColumn(strPTFile1, strWSName, "China", 1, intFirstRow + 1, intMiddleCol, , 1000, 1)
+    
+    'Copy Fund 1 %MKV
+    Call CopyWBColumn(strPTFile1, strWSName, "China", 4, intFirstRow + 1, intMiddleCol + 1, , 1000, 1)
+    
+    'Copy Fund 1 CTSD
+    Call CopyWBColumn(strPTFile1, strWSName, "China", 22, intFirstRow + 1, intMiddleCol + 3, , 1000, 1)
+    
+    'Copy Fund 2 %MKV
+    Call CopyWBColumn(strPTFile2, strWSName, "China", 4, intFirstRow + 1, intMiddleCol + 2, , 1000, 1)
+    
+    'Copy Fund 2 CTSD
+    Call CopyWBColumn(strPTFile2, strWSName, "China", 22, intFirstRow + 1, intMiddleCol + 4, , 1000, 1)
+    
+    intLastRow = FindLastRow(intMiddleCol + 1, intLastRowConst)
+    
+    'Diff %MKV and Diff CTSD
+    For intCounter = intFirstRow + 1 To intLastRow
+        Cells(intCounter, intMiddleCol + 5).FormulaR1C1 = "=RC[-4]-RC[-3]"
+        Cells(intCounter, intMiddleCol + 6).FormulaR1C1 = "=RC[-3]-RC[-2]"
+    Next intCounter
+    
+    
+    
+    Call AdjustMVCTSD(strFund1, strPTFile1)
+    
+    Call AdjustMVCTSD(strFund2, strPTFile2)
+    
+    'Adjust the total row to change it to formulas
+    intLastRow = FindLastRow(intMiddleCol + 1, intLastRowConst)
+    
+    intLastCol = FindLastCol(intMiddleCol + 1, intLastRow)
+    
+    For intCounter = intMiddleCol + 1 To intLastCol
+        Cells(intLastRow, intCounter).Formula = "=sum(" & colLtr(intCounter) & intFirstRow + 1 & ":" & colLtr(intCounter) & intLastRow - 1 & ")"
+    Next intCounter
+    
+
+End Sub
+
+
+Sub AdjustMVCTSD(strFund As String, strPTFile As String)
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+Dim intCounter As Integer
+Dim strData As String
+Dim strWSName As String
+Dim strCountry As String
+Dim strSector As String
+Dim intSourceCol As Integer
+Dim intTargetCol As Integer
+Dim arrData As Variant
+Dim strKey As String
+Dim dblMVAdj As Double
+Dim dblCTSDAdj As Double
+
+    'Financial Adjustments from HK into China
+    'Go through HK names in Detail Report, pick up ticker (col C) of Finance Sector (col P) securities
+    'Go to DurbuckCTDOV_Index Exposure Portfolio section and pick up MV (col H) and CTSD (col J) adjustments
+    strData = ""
+    strWSName = "Detail2"
+    strCountry = "Hong Kong"
+    strSector = "FINANCIAL"
+    intSourceCol = 16
+    intTargetCol = 3
+    
+    Workbooks(strPTFile).Worksheets(strWSName).Activate
+    
+    intFirstRow = FindCountryRow(strCountry)
+    intLastRow = FindCountryRow(strCountry & " Subtotal")
+    
+    For intCounter = intFirstRow + 1 To intLastRow - 1
+        If Cells(intCounter, 16).Value = strSector Then
+            strData = strData & "," & Cells(intCounter, 3).Value
+        End If
+    Next intCounter
+
+    arrData = Split(strData, ",")
+    
+    strWSName = "DurbuckCTDOV_Index Exposure"
+    Workbooks(strPTFile).Worksheets(strWSName).Activate
+    
+    strKey = "Portfolio"
+    intFirstRow = FindCountryRow(strKey)
+    intLastRow = FindLastRow(2, intLastRowConst)
+    dblMVAdj = 0
+    dblCTSDAdj = 0
+    
+    For intCounter = intFirstRow + 1 To intLastRow - 1
+        If IsInArray(Cells(intCounter, 2).Value, arrData) > 0 Then
+            'Found in array
+            dblMVAdj = dblMVAdj + Cells(intCounter, 8).Value
+            dblCTSDAdj = dblCTSDAdj + Cells(intCounter, 10).Value
+        End If
+    Next intCounter
+    
+    'strData = dblMVAdj & "," & dblCTSDAdj
+    
+    'arrData = Split(strData, ",")
+    
+    Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
+    
+    strKey = "China Active"
+    intFirstRow = FindCountryRow(strKey)
+    intLastRow = FindLastRow(intMiddleCol, intLastRowConst)
+    
+    For intCounter = intFirstRow + 1 To intLastRow
+        If Cells(intCounter, intMiddleCol).Value = strSector Then
+            If strFund = strFund1 Then
+                Cells(intCounter, intMiddleCol + 1).Formula = "=" & Cells(intCounter, intMiddleCol + 1).Value & "+" & dblMVAdj
+                Cells(intCounter, intMiddleCol + 3).Formula = "=" & Cells(intCounter, intMiddleCol + 3).Value & "+" & dblCTSDAdj
+            Else
+                Cells(intCounter, intMiddleCol + 2).Formula = "=" & Cells(intCounter, intMiddleCol + 2).Value & "+" & dblMVAdj
+                Cells(intCounter, intMiddleCol + 4).Formula = "=" & Cells(intCounter, intMiddleCol + 4).Value & "+" & dblCTSDAdj
+            End If
+        End If
+    Next intCounter
+    
+    'Quasi and Oil Gas Adjustments
+    'Go to Sector Report, pick up MV Exposure in Col W, CTSD Exposure at AI
+    'Add to Oil Gas Sector and reduce from Quasi Sov sector
+    
+    strWSName = "Sector"
+    Workbooks(strPTFile).Worksheets(strWSName).Activate
+    strKey = "Manual adjustments for China from Quasi Sov into Oil and Gas"
+    
+    intFirstRow = FindCountryRow(strKey)
+    
+    dblMVAdj = Cells(intFirstRow + 3, 23).Value
+    dblCTSDAdj = Cells(intFirstRow + 3, 35).Value
+    
+    Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
+    
+    strKey = "China Active"
+    intFirstRow = FindCountryRow(strKey)
+    intLastRow = FindLastRow(intMiddleCol, intLastRowConst)
+    
+    For intCounter = intFirstRow + 1 To intLastRow
+        If Cells(intCounter, intMiddleCol).Value = "OIL_GAS" Then
+            If strFund = strFund1 Then
+                Cells(intCounter, intMiddleCol + 1).Formula = "=" & Cells(intCounter, intMiddleCol + 1).Value & "+" & dblMVAdj
+                Cells(intCounter, intMiddleCol + 3).Formula = "=" & Cells(intCounter, intMiddleCol + 3).Value & "+" & dblCTSDAdj
+            Else
+                Cells(intCounter, intMiddleCol + 2).Formula = "=" & Cells(intCounter, intMiddleCol + 2).Value & "+" & dblMVAdj
+                Cells(intCounter, intMiddleCol + 4).Formula = "=" & Cells(intCounter, intMiddleCol + 4).Value & "+" & dblCTSDAdj
+            End If
+        ElseIf Cells(intCounter, intMiddleCol).Value = "QUASI_SOV" Then
+            If strFund = strFund1 Then
+                Cells(intCounter, intMiddleCol + 1).Formula = "=" & Cells(intCounter, intMiddleCol + 1).Value & "-" & dblMVAdj
+                Cells(intCounter, intMiddleCol + 3).Formula = "=" & Cells(intCounter, intMiddleCol + 3).Value & "-" & dblCTSDAdj
+            Else
+                Cells(intCounter, intMiddleCol + 2).Formula = "=" & Cells(intCounter, intMiddleCol + 2).Value & "-" & dblMVAdj
+                Cells(intCounter, intMiddleCol + 4).Formula = "=" & Cells(intCounter, intMiddleCol + 4).Value & "-" & dblCTSDAdj
+            End If
+        End If
+    Next intCounter
     
     
 End Sub
+
+
+
+Function IsInArray(stringToBeFound As String, arr As Variant) As Long
+  Dim i As Long
+  ' default return value if value not found in array
+  IsInArray = -1
+
+  For i = LBound(arr) To UBound(arr)
+    If StrComp(stringToBeFound, arr(i), vbTextCompare) = 0 Then
+      IsInArray = i
+      Exit For
+    End If
+  Next i
+End Function
+
 
 Sub MakeCtyRatingsBlock()
 Dim intStartRow As Integer
@@ -345,10 +659,11 @@ Dim intFirstRow As Integer
 Dim strWSName As String
 
 
+
     Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
     intFirstRow = FindLastRow(1, intLastRowConst) + 5
     
-    strWSName = "CtyRatings_Report"
+    strWSName = "CtyRatings"
 
     'Goto CtyRatings, Copy 1st Column only
     Call CopyWBColumn(strPTFile1, strWSName, "HY active", 0, intFirstRow, 1)
@@ -376,6 +691,9 @@ Dim strWSName As String
     'Label Fund 2 CTSD Override
     Cells(intFirstRow - 1, 7).Value = strFund2
     Call CopyWBColumn(strPTFile2, strWSName, "HY active", 3, intFirstRow, 7)
+    
+    
+    
 End Sub
 
 
@@ -385,11 +703,12 @@ Dim strData As String
 Dim arrData As Variant
 Dim intCounter As Integer
 Dim strWSName As String
+Dim strRange As String
 
     Workbooks(strComboWBName).Worksheets(strComboWSName).Activate
     intFirstRow = FindLastRow(intMiddleCol, intLastRowConst) + 4
     
-    strWSName = "Sector_Report"
+    strWSName = "Sector"
     
     Cells(intFirstRow, intMiddleCol).Value = "Active Sectors"
     'Goto first PT file, extract all sectors
@@ -473,8 +792,9 @@ Dim strWSName As String
         Cells(intFirstRow + intCounter, intMiddleCol + 6).Value = arrData(intCounter)
     Next intCounter
     
-    
-    
+    strRange = colLtr(intMiddleCol + 1) & intFirstRow + 1 & ":" & colLtr(intMiddleCol + 6) & intFirstRow + intCounter - 1
+    Range(strRange).Select
+    Selection.NumberFormat = "0.00"
 End Sub
 
 
@@ -518,6 +838,9 @@ intFirstCol = ActiveCell.Column
 
 If intRowAdd = 0 Then
     intLastRow = FindLastRow(intFirstCol, intLastRowConst)
+ElseIf intRowAdd = 1000 Then
+    'Dynamic check last row based on first row
+    intLastRow = FindLastRowReversed(intFirstCol + intOffset, intFirstRow)
 Else
     intLastRow = intFirstRow + intRowAdd
 End If
@@ -587,6 +910,7 @@ End Sub
 
 Sub PopulateFundSummary(strPTFile As String, intLastRow As Integer, intFundCol As Integer)
 Dim varDataArray As Variant
+Dim strRange As String
 
     varDataArray = SumCash(strPTFile, intFundCol)
   
@@ -620,27 +944,32 @@ Dim varDataArray As Variant
     'Active CTD (adj)
     Cells(intLastRow + 8, intFundCol).Value = varDataArray(5)
     
+    strRange = colLtr(intFundCol) & intLastRow + 2 & ":" & colLtr(intFundCol) & intLastRow + 8
+    Range(strRange).Select
+    Selection.NumberFormat = "0.00"
 End Sub
 
 Function GetActiveNumbers(strPTFile As String) As Variant
 Dim intLastRow As Integer
 Dim strArrayData As String
+Dim strWSSource As String
 
-Workbooks(strPTFile).Worksheets("Detail_Report").Activate
+strWSSource = "Detail2"
+Workbooks(strPTFile).Worksheets(strWSSource).Activate
 intLastRow = FindCountryRow("Report Generated by") - 3
 
 'Active CTSD
-strArrayData = Cells(intLastRow, 36).Value
+strArrayData = Cells(intLastRow, 37).Value
 'Active YTW
-strArrayData = strArrayData & "," & Cells(intLastRow, 27).Value
+strArrayData = strArrayData & "," & Cells(intLastRow, 28).Value
 'Active OAS
-strArrayData = strArrayData & "," & Cells(intLastRow, 30).Value
+strArrayData = strArrayData & "," & Cells(intLastRow, 31).Value
 'Active DTS
-strArrayData = strArrayData & "," & Cells(intLastRow, 33).Value
+strArrayData = strArrayData & "," & Cells(intLastRow, 34).Value
 'Active CTD
-strArrayData = strArrayData & "," & Cells(intLastRow, 21).Value
+strArrayData = strArrayData & "," & Cells(intLastRow, 22).Value
 
-Workbooks(strPTFile).Worksheets("HYvsIG_Report").Activate
+Workbooks(strPTFile).Worksheets("HYvsIG").Activate
 
 intLastRow = FindCountryRow("Total (adjusted)")
 
@@ -657,19 +986,26 @@ Dim dblCashMVTotal As Double
 Dim intLastRow As Integer
 Dim intRowCounter As Integer
 Dim varCash As Variant
+Dim strWSSource As String
+Dim intUSTCol As Integer
+Dim intParCol As Integer
+Dim intMVCol As Integer
 
+strWSSource = "Detail2"
 
-Workbooks(strPTFile).Worksheets("Detail_Report").Activate
+Workbooks(strPTFile).Worksheets(strWSSource).Activate
 intLastRow = FindLastRow(intCol, intLastRowConst)
 
 dblCashTotal = 0
 dblCashMVTotal = 0
-
+intUSTCol = 4
+intParCol = 25
+intMVCol = 19
 For intRowCounter = 1 To intLastRow
-    If ((InStr(1, Cells(intRowCounter, 3).Value, "CASH") > 0) Or (InStr(1, Cells(intRowCounter, 3).Value, "TREASURY BILL") > 0) Or (InStr(1, Cells(intRowCounter, 3).Value, "US TREASURY") > 0)) Then
+    If ((InStr(1, Cells(intRowCounter, 2).Value, "CASHUSD") > 0) Or (InStr(1, Cells(intRowCounter, intUSTCol).Value, "TREASURY BILL") > 0) Or (InStr(1, Cells(intRowCounter, intUSTCol).Value, "US TREASURY") > 0)) Then
         'If Cash is found then add to bucket
-        dblCashTotal = dblCashTotal + Cells(intRowCounter, 24).Value
-        dblCashMVTotal = dblCashMVTotal + Cells(intRowCounter, 18).Value
+        dblCashTotal = dblCashTotal + Cells(intRowCounter, intParCol).Value
+        dblCashMVTotal = dblCashMVTotal + Cells(intRowCounter, intMVCol).Value
     End If
 Next intRowCounter
 
@@ -746,6 +1082,7 @@ End Function
 
 Sub ProcessHYvsIG()
 Dim strWSName As String
+Dim strWSSource As String
 Dim intFirstRow As Integer
 Dim intLastRow As Integer
 Dim intBlockStartRow As Integer
@@ -763,8 +1100,11 @@ Dim intUSTCount As Integer
 Dim dblUSTWeight As Double
 Dim dblUSTCTD As Double
 Dim strSecName As String
+Dim strUSTCol As String
+Dim intUSTMVCol As Integer
+Dim intUSTCTDCol As Integer
 
-    strWSName = "HYvsIG_Report"
+    strWSName = "HYvsIG"
     
     If VerifyColumns(strWSName) > 0 Then
         MsgBox "Hi " & strUserName & ", I found column discrepancies in " & strWSName & " and will skip and move on to the next available worksheet"
@@ -914,51 +1254,40 @@ Dim strSecName As String
     ActiveSheet.Paste
     
     'Recalculating UST MV for US TREASURY N/B
-    Worksheets("Detail_Report").Activate
+    
+'    strWSSource = "Detail_Report"
+    strWSSource = "Detail2"
+    
+    Worksheets(strWSSource).Activate
     strSecName = "US TREASURY N/B"
-    intUSTCount = Application.CountIf(Range("C1:C" & intLastRowConst), strSecName)
+'    strUSTCol = "C"
+    strUSTCol = "D"
+    intUSTCount = Application.CountIf(Range(strUSTCol & "1:" & strUSTCol & intLastRowConst), strSecName)
     
     dblUSTWeight = 0
     dblUSTCTD = 0
+    
+    intUSTMVCol = 18
+    intUSTCTDCol = 21
     
     If intUSTCount = 0 Then
         dblUSTWeight = 0
         dblUSTCTD = 0
     ElseIf intUSTCount = 1 Then
      intUSTMVRow = FindCountryRow(strSecName)
-     dblUSTWeight = Cells(intUSTMVRow, 17).Value
-     dblUSTCTD = Cells(intUSTMVRow, 20).Value
+     dblUSTWeight = Cells(intUSTMVRow, intUSTMVCol).Value
+     dblUSTCTD = Cells(intUSTMVRow, intUSTCTDCol).Value
     Else
         intUSTMVRow = FindCountryRow(strSecName)
-        dblUSTWeight = Cells(intUSTMVRow, 17).Value
-        dblUSTCTD = Cells(intUSTMVRow, 20).Value
+        dblUSTWeight = Cells(intUSTMVRow, intUSTMVCol).Value
+        dblUSTCTD = Cells(intUSTMVRow, intUSTCTDCol).Value
         For i = 2 To intUSTCount
             intUSTMVRow = FindCountryRowInstance(strSecName, i)
-            dblUSTWeight = dblUSTWeight + Cells(intUSTMVRow, 17).Value
-            dblUSTCTD = dblUSTCTD + Cells(intUSTMVRow, 20).Value
+            dblUSTWeight = dblUSTWeight + Cells(intUSTMVRow, intUSTMVCol).Value
+            dblUSTCTD = dblUSTCTD + Cells(intUSTMVRow, intUSTCTDCol).Value
         Next i
     End If
     
-    'Adding UST 10-YR NOTE FUTURES CTD to CTD Summation (dblUSTCTD)
-    'Deprecated 3rd March 2015
-'    Worksheets("Detail_Report").Activate
-'    strSecName = "UST 10-YR NOTE FUTURES"
-'    intUSTCount = Application.CountIf(Range("C1:C" & intLastRowConst), strSecName)
-'
-'    If intUSTCount = 1 Then
-'        intUSTMVRow = FindCountryRow(strSecName)
-'        dblUSTCTD = dblUSTCTD + Cells(intUSTMVRow, 20).Value
-'    ElseIf intUSTCount > 1 Then
-'        intUSTMVRow = FindCountryRow(strSecName)
-'        dblUSTCTD = dblUSTCTD + Cells(intUSTMVRow, 20).Value
-'
-'        For i = 2 To intUSTCount
-'            intUSTMVRow = FindCountryRowInstance(strSecName, i)
-'            dblUSTCTD = dblUSTCTD + Cells(intUSTMVRow, 20).Value
-'        Next i
-'    End If
-'
-'
     Worksheets(strWSName).Activate
 
     intUSTMVRow = FindCountryRow("UST MV")
@@ -1125,16 +1454,6 @@ End Sub
 
 
 
-
-
-Sub BoldRow(intRow As Integer, bolTF As Boolean)
-Dim strRow As String
-    strRow = intRow & ":" & intRow
-    Rows(strRow).Select
-    Selection.Font.Bold = bolTF
-End Sub
-
-
 Sub ProcessTemplate()
 Dim strWSName As String
 Dim intFirstRow As Integer
@@ -1190,9 +1509,12 @@ Dim varTestRating As Variant
 Dim strTotal As String
 Dim arrTotal As Variant
 Dim j As Integer
+Dim intRowOffSet As Integer
+Dim dblIndoSovMV As Double
+Dim dblIndoSovYTW As Double
+Dim dblIndoSovCTSD As Double
 
-
-    strWSName = "CtyRatings_Report"
+    strWSName = "CtyRatings"
     
     If VerifyColumns(strWSName) > 0 Then
         MsgBox "Hi " & strUserName & ", I found column discrepancies in " & strWSName & " and will skip and move on to the next available worksheet"
@@ -1234,7 +1556,7 @@ Dim j As Integer
     arrCorpRatings = Array("BB+", "BB", "BB-", "B+", "B", "B-", "CCC+", "CCC", "CCC-", "CC", "CC+", "CC-", "C", "C+", "C-", "DDD", "DD", "D", "N/A")
     
     'Collect Indo data from SectorRating_Report
-    Worksheets("SectorRating_Report").Activate
+    Worksheets("SectorRating").Activate
     
     Cells(1, 1).Select
     intIndoStartRow = FindCountryRowInCol("Indonesia")
@@ -1248,6 +1570,14 @@ Dim j As Integer
                 dblIndoQuasiMV = Cells(intCounter + 1, 6).Value + dblIndoQuasiMV
                 dblIndoQuasiYTW = Cells(intCounter + 1, 9).Value + dblIndoQuasiYTW
                 dblIndoQuasiCTSD = Cells(intCounter + 1, 18).Value + dblIndoQuasiCTSD
+                intCounter = intCounter + 1
+            Loop
+        ElseIf Cells(intCounter, 2).Value = "SOVEREIGN" Then
+            'Collecting values on rows with ratings
+            Do Until Cells(intCounter + 1, 2).Value = "SOVEREIGN Subtotal"
+                dblIndoSovMV = Cells(intCounter + 1, 6).Value + dblIndoSovMV
+                dblIndoSovYTW = Cells(intCounter + 1, 9).Value + dblIndoSovYTW
+                dblIndoSovCTSD = Cells(intCounter + 1, 18).Value + dblIndoSovCTSD
                 intCounter = intCounter + 1
             Loop
         Else
@@ -1351,6 +1681,7 @@ Dim j As Integer
     End If
     
     
+    strTotal = ""
     'Pick up Subtotal Rows, add to strTotal
     For intCounter = intFirstRow To intLastRow '24 to 45
         If Left(Cells(intCounter, 22).Value, 8) = "Subtotal" Then
@@ -1372,6 +1703,164 @@ Dim j As Integer
         Cells(intLastRow, intCounter).Formula = strTotal
     Next intCounter
     
+    'intLastRow = 45
+    
+    'Add IG Active codes here
+    intFirstRow = intLastRow + 2
+    
+    'Copy template over
+    Application.Workbooks(strMacroFileName).Activate
+    Worksheets("Adj_CtyRatings").Activate
+    
+    Cells(6, 1).Select
+    intLastCol = FindLastCol(6, 1)
+    intLastRow = FindLastRow(6, intLastRowConst)
+    
+    Range("F1:" & colLtr(intLastCol) & intLastRow).Select
+    
+    Selection.Copy
+    
+    Application.Workbooks(strPTFileName).Activate
+    Worksheets(strWSName).Activate
+    
+    intLastCol = FindLastCol(1, 25)
+    
+    Cells(intFirstRow, intLastCol + 2).Select
+    ActiveSheet.Paste
+    intSubTotalTopRow = intFirstRow
+    
+    intLastRow = FindLastRow(intLastCol + 2, intLastRowConst) '68
+    
+    For intCounter = intFirstRow + 1 To intLastRow - 1
+        strCountry = Cells(intCounter, intLastCol + 2).Value
+        If InStr(1, strCountry, " ") - 1 < 0 Then
+            'For single word countries
+'            MsgBox ("Single Word Countries " & strCountry)
+            strCountry = Trim(strCountry)
+            intCountryRow = FindCountryRowInCol(strCountry)
+            If Cells(intCountryRow + 2, 2).Value = "Investment Grade" Then
+                intRowOffSet = 2
+            ElseIf Cells(intCountryRow + 1, 2).Value = "Investment Grade" Then
+                intRowOffSet = 1
+            End If
+            '%MKV column
+            Cells(intCounter, 23).Formula = "=" & Cells(intCountryRow + intRowOffSet, 5).Address
+            'YTW column
+            Cells(intCounter, 24).Formula = "=" & Cells(intCountryRow + intRowOffSet, 11).Address
+            'CTSD Override column
+            Cells(intCounter, 25).Formula = "=" & Cells(intCountryRow + intRowOffSet, 20).Address
+            
+        ElseIf InStr(1, strCountry, "(NR IG)") > 1 Then
+            'For countries with (NR IG), pick up the HY equivalent
+            strCountry = Left(strCountry, InStr(1, strCountry, "(NR IG)") - 1)
+            strCountry = Trim(strCountry)
+            'If it is China, then skip
+            If strCountry = "China" Then
+            
+            Else
+                intCountryRow = FindCountryRowInCol(strCountry)
+                If Cells(intCountryRow + 1, 2).Value = "High Yield" Then
+                    '%MKV column
+                    Cells(intCounter, 23).Formula = "=" & Cells(intCountryRow + 1, 5).Address
+                    'YTW column
+                    Cells(intCounter, 24).Formula = "=" & Cells(intCountryRow + 1, 11).Address
+                    'CTSD Override column
+                    Cells(intCounter, 25).Formula = "=" & Cells(intCountryRow + 1, 20).Address
+                End If
+            
+            
+            End If
+            
+            
+        Else
+            'It is either Subtotal or countries in this section
+            'Special handling for Indo Sovereigns and Quasis
+            'Flip over to Country Report?? or Sector Rating Report?? for details
+            If strCountry = "Indonesia Sovereigns" Then
+                intSubTotalTopRow = intCounter - 1
+                '%MKV column
+                Cells(intCounter, 23).Value = dblIndoSovMV
+                'YTW column
+                Cells(intCounter, 24).Value = dblIndoSovYTW
+                'CTSD Override column
+                Cells(intCounter, 25).Value = dblIndoSovCTSD
+                
+            ElseIf strCountry = "Indonesia Quasis" Then
+                intSubTotalBottomRow = intCounter + 1
+                '%MKV column
+                Cells(intCounter, 23).Value = dblIndoQuasiMV
+                'YTW column
+                Cells(intCounter, 24).Value = dblIndoQuasiYTW
+                'CTSD Override column
+                Cells(intCounter, 25).Value = dblIndoQuasiCTSD
+            End If
+            
+        
+            
+            strCountry = Left(strCountry, InStr(1, strCountry, " ") - 1)
+            If strCountry = "Subtotal" Then
+                'Processing subtotal rows
+                intSubTotalBottomRow = intCounter
+                Cells(intSubTotalBottomRow, 23).Formula = "=SUM(W" & intSubTotalTopRow + 1 & ":W" & intSubTotalBottomRow - 1 & ")"
+                Cells(intSubTotalBottomRow, 24).Formula = "=SUM(X" & intSubTotalTopRow + 1 & ":X" & intSubTotalBottomRow - 1 & ")"
+                Cells(intSubTotalBottomRow, 25).Formula = "=SUM(Y" & intSubTotalTopRow + 1 & ":Y" & intSubTotalBottomRow - 1 & ")"
+                intSubTotalTopRow = intSubTotalBottomRow
+            Else
+                'We will pick up IG values for these countries
+                'If strCountry = "China" Then
+'                    MsgBox "China"
+                
+                
+                If strCountry <> "Indonesia" Then
+                   
+                    intSubTotalTopRow = intCounter - 1
+                    'All other countries
+                    'MsgBox ("All other countries " & strCountry)
+                    intCountryRow = FindCountryRowInCol(strCountry)
+                    
+                    If Cells(intCountryRow + 2, 2).Value = "Investment Grade" Then
+                        intRowOffSet = 2
+                    ElseIf Cells(intCountryRow + 1, 2).Value = "Investment Grade" Then
+                        intRowOffSet = 1
+                    End If
+                    '%MKV column
+                    Cells(intCounter, 23).Formula = "=" & Cells(intCountryRow + intRowOffSet, 5).Address
+                    'YTW column
+                    Cells(intCounter, 24).Formula = "=" & Cells(intCountryRow + intRowOffSet, 11).Address
+                    'CTSD Override column
+                    Cells(intCounter, 25).Formula = "=" & Cells(intCountryRow + intRowOffSet, 20).Address
+                    
+                End If
+            End If
+        End If
+    
+        
+    Next intCounter
+    
+    strTotal = ""
+    'Pick up rows not in Subtotal Rows, add to strTotal
+    For intCounter = intFirstRow + 1 To intLastRow - 1
+        If Left(Cells(intCounter, 22).Value, 8) <> "Subtotal" Then
+            strTotal = strTotal & intCounter & ","
+        End If
+    Next intCounter
+    
+    strTotal = Left(strTotal, Len(strTotal) - 1)
+    
+    arrTotal = Split(strTotal, ",")
+    
+    
+    'Update Total Summation Formula
+    For intCounter = 23 To 25
+        strTotal = "="
+        For j = 0 To UBound(arrTotal)
+            strTotal = strTotal & "+" & Cells(arrTotal(j), intCounter).Address
+        Next j
+        'Cells(intLastRow, intCounter).Formula = "=SUM(" & colLtr(intCounter) & intFirstRow + 1 & ":" & colLtr(intCounter) & intLastRow - 1 & ")" & strTotal
+        Cells(intLastRow, intCounter).Formula = strTotal
+    Next intCounter
+    
+
     
     With Worksheets(strWSName).Tab
         .Color = 12611584 'Blue
@@ -1387,10 +1876,11 @@ End Sub
 Sub ProcessSectorReport()
 Dim strWSName As String
 Dim intFirstRow As Integer
+Dim strFundCode As String
 On Error GoTo CheckOverflow
 
 
-    strWSName = "Sector_Report"
+    strWSName = "Sector"
     
     If VerifyColumns(strWSName) > 0 Then
         MsgBox "Hi " & strUserName & ", I found column discrepancies in " & strWSName & " and will skip and move on to the next available worksheet"
@@ -1409,8 +1899,9 @@ On Error GoTo CheckOverflow
         Exit Sub
     End If
     
+    strFundCode = Cells(FindCountryRow("Account"), 2).Value
     
-    Call ManualSectorReportOverride(strWSName)
+    Call ManualSectorReportOverride(strWSName, strFundCode)
     
     
     With Worksheets(strWSName).Tab
@@ -1435,8 +1926,6 @@ End If
 
 End Sub
 
-
-
 Sub ProcessDBCTDIndexExp()
 Dim strWSName As String
 Dim strWSSource As String
@@ -1459,6 +1948,8 @@ Dim dbl7To10 As Double
 Dim dbl10To15 As Double
 Dim dblMore15 As Double
 Dim arrRates As Variant
+Dim intDurCol As Integer
+Dim intCTDCol As Integer
 
     strWSName = "DurbuckCTD_Index Exposure"
     
@@ -1558,26 +2049,32 @@ Dim arrRates As Variant
 '    dbl10To15 = 5.5
 '    dblMore15 = 6.6
     
-    strWSSource = "Detail_Report"
+'    strWSSource = "Detail_Report"
 
+    strWSSource = "Detail2"
+    
     Worksheets(strWSSource).Activate
     
     intFirstCountryRow = FindCountryRow("United States") + 1
     intLastCountryRow = FindCountryRow("United States Subtotal ") - 1
     
+'    intDurCol = 7
+'    intCTDCol = 20
+    intDurCol = 8
+    intCTDCol = 21
     For intCounter = intFirstCountryRow To intLastCountryRow
-        If Cells(intCounter, 7).Value < 3 Then
-            dblLess3 = dblLess3 + Cells(intCounter, 20).Value
-        ElseIf Cells(intCounter, 7).Value >= 3 And Cells(intCounter, 7).Value < 5 Then
-            dbl3To5 = dbl3To5 + Cells(intCounter, 20).Value
-        ElseIf Cells(intCounter, 7).Value >= 5 And Cells(intCounter, 7).Value < 7 Then
-            dbl5To7 = dbl5To7 + Cells(intCounter, 20).Value
-        ElseIf Cells(intCounter, 7).Value >= 7 And Cells(intCounter, 7).Value < 10 Then
-            dbl7To10 = dbl7To10 + Cells(intCounter, 20).Value
-        ElseIf Cells(intCounter, 7).Value >= 10 And Cells(intCounter, 7).Value < 15 Then
-            dbl10To15 = dbl10To15 + Cells(intCounter, 20).Value
+        If Cells(intCounter, intDurCol).Value < 3 Then
+            dblLess3 = dblLess3 + Cells(intCounter, intCTDCol).Value
+        ElseIf Cells(intCounter, intDurCol).Value >= 3 And Cells(intCounter, intDurCol).Value < 5 Then
+            dbl3To5 = dbl3To5 + Cells(intCounter, intCTDCol).Value
+        ElseIf Cells(intCounter, intDurCol).Value >= 5 And Cells(intCounter, intDurCol).Value < 7 Then
+            dbl5To7 = dbl5To7 + Cells(intCounter, intCTDCol).Value
+        ElseIf Cells(intCounter, intDurCol).Value >= 7 And Cells(intCounter, intDurCol).Value < 10 Then
+            dbl7To10 = dbl7To10 + Cells(intCounter, intCTDCol).Value
+        ElseIf Cells(intCounter, intDurCol).Value >= 10 And Cells(intCounter, intDurCol).Value < 15 Then
+            dbl10To15 = dbl10To15 + Cells(intCounter, intCTDCol).Value
         Else
-            dblMore15 = dblMore15 + Cells(intCounter, 20).Value
+            dblMore15 = dblMore15 + Cells(intCounter, intCTDCol).Value
         End If
     Next intCounter
     
@@ -1613,302 +2110,6 @@ End Sub
 
 
 
-Sub ProcessDBCTDIndexExp2()
-'Deprecated, no longer in use
-Dim strWSName As String
-Dim strWSSource As String
-Dim intFirstRow As Integer
-Dim intLastRow As Integer
-Dim intSourceRow As Integer
-Dim intFirstCountryRow As Integer
-Dim intLastCountryRow As Integer
-Dim intFirstCol As Integer
-Dim intSourceCol As Integer
-Dim intLastCol As Integer
-Dim intCounter As Integer
-Dim arrBuckets As Variant
-Dim strCopySource As String
-Dim strCopyTarget As String
-
-    strWSName = "DurbuckCTD_Index Exposure"
-    
-    
-    If VerifyColumns(strWSName) > 0 Then
-        MsgBox "Hi " & strUserName & ", I found column discrepancies in " & strWSName & " and will skip and move on to the next available worksheet"
-        Exit Sub
-    End If
-    
-    Worksheets(strWSName).Activate
-    
-    
-    intLastRow = FindLastRow(1, intLastRowConst) '131
-    'MsgBox intLastRow
-    
-    
-    'Fix the Total Calculation
-    intLastCol = FindLastCol(3, intLastRow)
-    
-    intFirstRow = FindFirstRowReversed(1)
-    
-    For intCounter = 3 To intLastCol
-        Cells(intLastRow, intCounter).Formula = "=sum(" & colLtr(intCounter) & intFirstRow + 1 & ":" & colLtr(intCounter) & intLastRow - 1 & ")"
-    Next intCounter
-    
-
-
-    intLastCountryRow = FindLastRow(2, intLastRowConst) '130
-    intFirstCountryRow = FindFirstRowReversed(2) '48
-
-    'Generate CTD Summary
-    intFirstRow = intLastRow + 3 '134
-    
-    'Check whether processing was previously done
-    If Cells(intFirstRow, 3).Value <> "" Then
-        MsgBox "Hi " & strUserName & ", " & strWSName & " was previously processed, skipping to the next available worksheet"
-        Exit Sub
-    End If
-    
-    intFirstCol = 2
-    arrBuckets = Array("CTD", "2y", "5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-
-    intFirstRow = intFirstRow + 1
-    intFirstCol = 3
-    intSourceCol = 6
-
-    For intCounter = 1 To UBound(arrBuckets) - 1
-
-        If intCounter > 2 Then
-            'Combining weights from 2 categories for 10y and 30y categories
-            Cells(intFirstRow, intFirstCol).Formula = "=" & Cells(intLastRow, intSourceCol).Address & "+" & Cells(intLastRow, intSourceCol + 4).Address
-            '30y categories add cell below
-            If intCounter > 3 Then
-                Cells(intFirstRow, intFirstCol).Formula = Cells(intFirstRow, intFirstCol).Formula & "+" & Cells(intLastRow + 1, intSourceCol + 4).Address
-            End If
-            intSourceCol = intSourceCol + 4
-        Else
-            Cells(intFirstRow, intFirstCol).Formula = "=" & Cells(intLastRow, intSourceCol).Address
-        End If
-        intFirstCol = intFirstCol + 1
-        intSourceCol = intSourceCol + 4
-    Next intCounter
-
-    'Total Summation
-    Cells(intFirstRow, intFirstCol).Formula = "=SUM(RC[-4]:RC[-1])"
-
-    intFirstRow = intFirstRow + 2
-    intFirstCol = 4
-    arrBuckets = Array("5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-    intFirstCol = 4
-    intFirstRow = intFirstRow + 1
-
-
-
-
-    For intCounter = 1 To UBound(arrBuckets) + 1
-
-        If intCounter = 4 Then
-            'Formula for Total
-            Cells(intFirstRow, intFirstCol).Formula = "=SUM(RC[-3]:RC[-1])"
-        ElseIf intCounter = 1 Then
-            'Combining 2y and 5y weights
-            Cells(intFirstRow, intFirstCol).Formula = "=R[-3]C[-1]+R[-3]C"
-        Else
-            Cells(intFirstRow, intFirstCol).Formula = "=R[-3]C"
-        End If
-        intFirstCol = intFirstCol + 1
-
-    Next intCounter
-
-
-
-
-
-    'Set Current UST Positioning
-    intFirstRow = intLastRow + 3
-    Cells(intFirstRow, 9).Value = "Current UST Positioning"
-    arrBuckets = Array("2y", "5y", "10y", "30y", "", "Trades", "2y", "5y", "10y", "30y")
-    intFirstRow = intFirstRow + 1
-
-    Call CreateColumnArray(9, intFirstRow, arrBuckets)
-
-
-    'Copy CTSD Block from DurbuckCTDOV_Index Exposure
-    intFirstRow = intLastRow + 3 '134
-    intFirstCol = 12
-
-    strWSSource = "DurbuckCTDOV_Index Exposure"
-
-    Worksheets(strWSSource).Activate
-    intLastRow = FindLastRow(15, intLastRowConst) '131
-
-    Range("B" & intLastRow + 3 & ":G" & intLastRow + 7).Select
-    Selection.Copy
-
-
-    Worksheets(strWSName).Activate
-    Cells(intFirstRow, intFirstCol).Select
-    ActiveCell.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
-        :=False, Transpose:=False
-
-
-    intFirstRow = intFirstRow + 7
-    intFirstCol = 2
-    arrBuckets = Array("Rates (by deduction)", "2y", "5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-
-    intFirstRow = intFirstRow + 1
-
-    intFirstCol = 2
-    For intCounter = 1 To UBound(arrBuckets)
-        If intCounter = 5 Then
-            'Formula for Total
-            Cells(intFirstRow, intFirstCol + 1).Formula = "=SUM(RC[-4]:RC[-1])"
-        Else
-            Cells(intFirstRow, intFirstCol + 1).Formula = "=R[-7]C-R[-7]C[10]"
-        End If
-        intFirstCol = intFirstCol + 1
-    Next intCounter
-
-
-    'Consolidate to 5y, 10y, 30y and Total
-    intFirstRow = intFirstRow + 2
-    intFirstCol = 4
-    arrBuckets = Array("5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-    intFirstCol = 4
-
-    intFirstRow = intFirstRow + 1
-    For intCounter = 1 To UBound(arrBuckets) + 1
-
-        If intCounter = 4 Then
-            'Formula for Total
-            Cells(intFirstRow, intFirstCol).Formula = "=SUM(RC[-3]:RC[-1])"
-        Else
-            Cells(intFirstRow, intFirstCol).Formula = "=R[-7]C-R[-7]C[10]"
-        End If
-        intFirstCol = intFirstCol + 1
-
-    Next intCounter
-
-
-    'Rates table
-    intFirstRow = intFirstRow + 2
-    intFirstCol = 2
-    arrBuckets = Array("Rates", "2y", "5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-
-    intFirstCol = 3
-
-    intFirstRow = intFirstRow + 1
-    For intCounter = 1 To UBound(arrBuckets)
-
-        If intCounter = 5 Then
-            'Formula for Total
-            Cells(intFirstRow, intFirstCol).Formula = "=SUM(RC[-4]:RC[-1])"
-        Else
-            Cells(intFirstRow, intFirstCol).Formula = "=" & Cells(intLastRow + 3 + intCounter, 10).Address
-
-        End If
-        intFirstCol = intFirstCol + 1
-
-    Next intCounter
-
-    'Copy CTD Block from above
-    strCopySource = "B" & intLastRow + 3 & ":G" & intLastRow + 7
-
-    intFirstRow = FindLastRow(7, intLastRowConst)
-    intFirstCol = 2
-
-    Cells(intFirstRow + 2, intFirstCol).Select
-
-    strCopyTarget = ActiveCell.Address
-
-    Call CopyBlock(strCopySource, strCopyTarget, "N")
-
-    intFirstRow = FindLastRow(2, intLastRowConst)
-    Cells(intFirstRow, 2).Value = "=""" & Cells(intFirstRow, 2).Value & " Today"""
-
-    intLastRow = FindFirstRowReversed(2)
-
-    strCopySource = "B" & intLastRow & ":G" & intLastRow + 1
-
-    intFirstRow = FindLastRow(7, intLastRowConst)
-    intFirstCol = 2
-
-    Cells(intFirstRow + 2, intFirstCol).Select
-
-    strCopyTarget = ActiveCell.Address
-
-    Call CopyBlock(strCopySource, strCopyTarget, "N")
-
-    intFirstRow = FindLastRow(2, intLastRowConst)
-    Cells(intFirstRow, 2).Value = "=""" & Cells(intFirstRow, 2).Value & " Today"""
-    
-    
-    'Process CTD (credit) block
-    intFirstRow = FindLastRow(17, intLastRowConst) + 2
-    
-    
-    intFirstCol = 12
-    arrBuckets = Array("CTSD (credit)", "2y", "5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-    
-    intFirstCol = 13
-    
-    intFirstRow = intFirstRow + 1
-    intSourceRow = FindLastRow(1, intLastRowConst) + 4
-    intSourceCol = 3
-    intLastRow = FindLastRow(3, intLastRowConst)
-    For intCounter = 1 To UBound(arrBuckets)
-        
-        If intCounter = 5 Then
-            'Formula for Total
-            Cells(intFirstRow, intFirstCol).Formula = "=SUM(RC[-4]:RC[-1])"
-        Else
-            Cells(intFirstRow, intFirstCol).Formula = "=" & Cells(intSourceRow, intSourceCol).Address & "-" & Cells(intLastRow, intSourceCol).Address
-            
-        End If
-        intFirstCol = intFirstCol + 1
-        intSourceCol = intSourceCol + 1
-    Next intCounter
-    
-    'Consolidate to 5y, 10y, 30y and Total
-    intFirstRow = intFirstRow + 2
-    intFirstCol = 14
-    arrBuckets = Array("5y", "10y", "30y", "Total")
-    Call CreateHeaderRow4(intFirstCol, intFirstRow, arrBuckets)
-    intFirstCol = 14
-    
-    intFirstRow = intFirstRow + 1
-    For intCounter = 1 To UBound(arrBuckets) + 1
-        
-        If intCounter = 4 Then
-            'Formula for Total
-            Cells(intFirstRow, intFirstCol).Formula = "=SUM(RC[-3]:RC[-1])"
-        ElseIf intCounter = 1 Then
-            'Combining 2y and 5y weights
-            Cells(intFirstRow, intFirstCol).Formula = "=R[-3]C[-1]+R[-3]C"
-        Else
-            Cells(intFirstRow, intFirstCol).Formula = "=R[-3]C"
-        End If
-        intFirstCol = intFirstCol + 1
-        
-    Next intCounter
-    
-    
-    With Worksheets(strWSName).Tab
-        .Color = 12611584 'Blue
-        '.Color = xlAutomatic
-        .TintAndShade = 0
-    End With
-    
-    strProcessedSheets = strProcessedSheets + vbCrLf + strWSName
-End Sub
-
-
-
 
 Sub ProcessJaci()
 Dim strWSName As String
@@ -1916,6 +2117,7 @@ Dim intLastRow As Integer
 Dim WB As Workbook
 Dim WS As Worksheet
 Dim strJACI As String
+
 
 On Error GoTo ErrHandle
 
@@ -2003,7 +2205,8 @@ MainProcess:
         .Color = -16776961
         .TintAndShade = 0
     End With
-    
+      
+     
     
     With Worksheets(strWSName).Tab
         .Color = 12611584 'Blue
@@ -2026,7 +2229,8 @@ ErrHandle:
     
 CheckJaciWB:
     'Checking whether jaci workbook is available in the background
-    Call SwitchWB("jaci")
+    'Call SwitchWB("jaci")
+    Call SwitchWB("JPM_JACI")
     If intGoodFile = 1 Then
         Exit Sub
     Else
@@ -2046,6 +2250,399 @@ CheckJaciWB:
 End Sub
 
 
+Sub ProcessJaciOilGas()
+Dim strTickerList As String
+Dim arrData As Variant
+Dim varData As Variant
+Dim strMonSector As String
+Dim dblIndexMKV As Double
+Dim dblIndexCTSD As Double
+Dim dblPortMKV As Double
+Dim dblPortExpMKV As Double
+Dim dblPortCTSD As Double
+Dim dblPortExpCTSD As Double
+Dim strFundCode As String
+Dim strWSSource As String
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+Dim intTickerCol As Integer
+Dim intSectorCol As Integer
+Dim intCounter As Integer
+Dim intMKVCol As Integer
+Dim intMKVExpCol As Integer
+Dim intCTSDCol As Integer
+Dim intCTSDExpCol As Integer
+
+'This subroutine identified a list of Oil and Gas tickers wrongly coded as Quasi Sovereign.  The summed up weights
+'would be updated into Adj_SectorReport
+
+    If strJaciFileName = "" Then
+    'JACI file not available, skipping this subroutine
+        Exit Sub
+    End If
+    
+    'This list contains the tickers that are Oil and Gas names wrongly coded as Quasi Soverign
+    strTickerList = "CNOOC, CNPCCH, SINOPE"
+    
+    arrData = Split(strTickerList, ",")
+    
+    'Monitored Sector = Quasi-Sov
+    strMonSector = "Quasi-Sov"
+    
+    'Run through Jaci to get Index %MKV and CTSD
+    dblIndexMKV = 0
+    dblIndexCTSD = 0
+    intTickerCol = 4
+    intSectorCol = 11
+    intMKVCol = 16
+    intCTSDCol = 22
+    
+    Application.Workbooks(strPTFileName).Activate
+    strWSSource = "jaci"
+    Worksheets(strWSSource).Activate
+    
+    intFirstRow = 2
+    intLastRow = FindLastRow(1, intLastRowConst)
+    
+    For intCounter = intFirstRow To intLastRow
+
+        varData = Filter(arrData, Cells(intCounter, intTickerCol).Value)
+                
+        If UBound(varData) >= 0 And Cells(intCounter, intTickerCol).Value <> "" And Cells(intCounter, intSectorCol).Value = strMonSector Then
+            'Ticker Matched, and sector is Quasi-Sov
+            'Colour that row orange
+            'Call ColorRow(intCounter, "Orange")
+            dblIndexMKV = dblIndexMKV + Cells(intCounter, intMKVCol).Value
+            dblIndexCTSD = dblIndexCTSD + Cells(intCounter, intCTSDCol).Value
+            
+        End If
+    
+    Next intCounter
+    
+    
+    
+    'Run through Detail sheet to get Portfolio %MKV, Exposure MKV, CTSD, Exposure CTSD
+    dblPortMKV = 0
+    dblPortExpMKV = 0
+    dblPortCTSD = 0
+    dblPortExpCTSD = 0
+    intTickerCol = 3
+    intSectorCol = 14
+    intMKVCol = 16
+    intMKVExpCol = 17
+    intCTSDCol = 34
+    intCTSDExpCol = 35
+    
+    strMonSector = "QUASI_SOV"
+    
+    'Find out what fund we are dealing with from detail report
+    Application.Workbooks(strPTFileName).Activate
+    strWSSource = "Detail2"
+    Worksheets(strWSSource).Activate
+    
+    strFundCode = Cells(FindCountryRow("Account(s):"), 2).Value
+    
+    intFirstRow = FindCountryRow("Country Of Risk Name")
+    intLastRow = FindLastRow(1, intLastRowConst)
+    
+    For intCounter = intFirstRow To intLastRow
+
+        varData = Filter(arrData, Cells(intCounter, intTickerCol).Value)
+                
+        If UBound(varData) >= 0 And Cells(intCounter, intTickerCol).Value <> "" And Cells(intCounter, intSectorCol).Value = strMonSector Then
+            'Ticker Matched, and sector is Quasi-Sov
+            'Colour that row orange
+            'Call ColorRow(intCounter, "Orange")
+            dblPortMKV = dblPortMKV + Cells(intCounter, intMKVCol).Value
+            
+            dblPortCTSD = dblPortCTSD + Cells(intCounter, intCTSDCol).Value
+            
+        End If
+    
+    Next intCounter
+    
+    dblPortExpMKV = dblPortMKV - dblIndexMKV
+    dblPortExpCTSD = dblPortCTSD - dblIndexCTSD
+    
+    'Update the macro Adj_SectorReport page with fresh figures
+    Application.Workbooks(strMacroFileName).Activate
+    'Update Adj_CTDOVIdxExp Index values
+    strWSSource = "Adj_SectorReport"
+    Worksheets(strWSSource).Activate
+    
+    intFirstRow = FindCountryRow(strFundCode & " start")
+    intLastRow = FindCountryRow(strFundCode & " end")
+    
+    Cells(intLastRow - 1, 3).Value = dblIndexMKV
+    Cells(intLastRow - 1, 15).Value = dblIndexCTSD
+    
+    Cells(intLastRow - 1, 4).Value = dblPortMKV
+    Cells(intLastRow - 1, 5).Value = dblPortExpMKV
+    
+    Cells(intLastRow - 1, 16).Value = dblPortCTSD
+    Cells(intLastRow - 1, 17).Value = dblPortExpCTSD
+    
+End Sub
+
+
+
+Sub ProcessJaciSelection()
+Dim strWSSource As String
+Dim intFundCount As Integer
+Dim intCounter As Integer
+Dim strFundCode As String
+
+'This subroutine updates the Macro template figures from the jaci benchmark before applying the updated numbers
+'back into the DurbuckCTDOV_Index Exposure worksheet
+
+
+    If strJaciFileName = "" Then
+    'JACI file not available, skipping this subroutine
+        Exit Sub
+    End If
+    
+    'Find out what fund we are dealing with from detail report
+    Application.Workbooks(strPTFileName).Activate
+    strWSSource = "Detail2"
+    Worksheets(strWSSource).Activate
+    
+    strFundCode = Cells(FindCountryRow("Account(s):"), 2).Value
+    
+    Call UpdateAdjCTDOVIdxExp(strFundCode, "Index")
+    
+    
+    
+    'Now do the same for Fund level CTD buckets in the Detail Report
+    Call UpdateAdjCTDOVIdxExp(strFundCode, "Portfolio")
+    
+
+End Sub
+
+Sub UpdateAdjCTDOVIdxExp(strFundCode As String, strIndexPort As String)
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+Dim intCounter As Integer
+Dim strWSSource As String
+Dim intBucketCol As Integer
+Dim intTickerCol As Integer
+Dim intISINCol As Integer
+Dim intCTSDCol As Integer
+Dim intTickerCount As Integer
+Dim strTickerList As String
+Dim strTickerSelected As String
+Dim arrData As Variant
+Dim dbl2y As Double
+Dim dbl5y As Double
+Dim dbl10y As Double
+Dim dbl30y As Double
+Dim strISINList As String
+Dim arrISIN As Variant
+Dim intISINCount As Integer
+Dim varISINTest As Variant
+Dim bolISINFound As Boolean
+
+    'Switch back to Macro Workbook
+    Application.Workbooks(strMacroFileName).Activate
+    'Update Adj_CTDOVIdxExp Index values
+    strWSSource = "Adj_CTDOVIdxExp"
+    Worksheets(strWSSource).Activate
+    
+    intFirstRow = FindCountryRow(strFundCode & " start")
+    intLastRow = FindCountryRow(strFundCode & " end")
+    
+    'Determining which column stores the tickers depending on whether we are looking at Index or Portfolio
+    'This are the positions within Macro file
+    If strIndexPort = "Index" Then
+        intTickerCol = 1
+    Else
+        'Updating portfolios
+        intTickerCol = 8
+    End If
+    
+    
+    
+    strTickerList = ""
+    For intCounter = intFirstRow + 2 To intLastRow - 2
+        'Collect Tickers
+        If Cells(intCounter, intTickerCol).Value <> "" And Cells(intCounter, intTickerCol).Value <> "Total" Then
+            strTickerList = Cells(intCounter, intTickerCol).Value & "," & strTickerList
+        End If
+    Next intCounter
+    
+    'Remove last comma
+    strTickerList = Left(strTickerList, Len(strTickerList) - 1)
+
+    'Putting the list of tickers within the index as an array
+    arrData = Split(strTickerList, ",")
+    
+    intISINCol = 16
+    strISINList = ""
+    
+    intFirstRow = 3
+    intLastRow = FindLastRow(16, intLastRowConst)
+    
+    For intCounter = intFirstRow To intLastRow
+        'Collect ISIN
+        strISINList = Cells(intCounter, intISINCol).Value & "," & strISINList
+    Next intCounter
+    
+    strISINList = Left(strISINList, Len(strISINList) - 1)
+    arrISIN = Split(strISINList, ",")
+    
+    'Run through each member of array, generating CTD according to spread duration bucket
+    For intTickerCount = LBound(arrData) To UBound(arrData)
+    
+    
+    If strIndexPort = "Index" Then
+        'Flip to the PT File, jaci worksheet and highlight securities that matched any member of arrData
+        Application.Workbooks(strPTFileName).Activate
+        
+        strWSSource = "jaci"
+        Worksheets(strWSSource).Activate
+        'jaci worksheet holds CTSD in column 22
+        intCTSDCol = 22
+        intBucketCol = 21
+        intTickerCol = 4
+        intFirstRow = 2
+        intISINCol = 3
+    Else
+        'Updating portfolios
+        Application.Workbooks(strPTFileName).Activate
+        
+        strWSSource = "Detail2"
+        Worksheets(strWSSource).Activate
+        intCTSDCol = 34
+        intBucketCol = 8
+        intTickerCol = 3
+        intISINCol = 2
+        intFirstRow = FindCountryRow("Country Of Risk Name") + 1
+    End If
+    
+    intLastRow = FindLastRow(1, intLastRowConst)
+    
+    dbl2y = 0
+    dbl5y = 0
+    dbl10y = 0
+    dbl30y = 0
+    
+        For intCounter = intFirstRow To intLastRow
+            strTickerSelected = arrData(intTickerCount)
+            If Cells(intCounter, intTickerCol).Value = strTickerSelected Then
+            'Matching row of ticker found
+            
+                'Check whether ISIN list is matched.  Update both Index and Portfolio boxes only if matched
+                bolISINFound = False
+                varISINTest = Filter(arrISIN, Cells(intCounter, intISINCol).Value)
+                
+                If UBound(varISINTest) >= 0 And Cells(intCounter, intISINCol).Value <> "" Then
+                    'ISIN Matched
+                    bolISINFound = True
+                End If
+            
+                If bolISINFound = True Then
+                    'Found in array, highlight in green
+                    'Call ColorRow(intCounter, "Green")
+                    
+                    'Put it into correct CTD bucket depending on spread duration value (col 21 for jaci)
+                    Select Case Cells(intCounter, intBucketCol).Value
+                        Case Is <= 2
+                            dbl2y = dbl2y + Cells(intCounter, intCTSDCol).Value
+                        Case Is <= 5
+                            dbl5y = dbl5y + Cells(intCounter, intCTSDCol).Value
+                        Case Is <= 10
+                            dbl10y = dbl10y + Cells(intCounter, intCTSDCol).Value
+                        Case Else
+                            dbl30y = dbl30y + Cells(intCounter, intCTSDCol).Value
+                    End Select
+                End If
+            End If
+        Next intCounter
+        'CTD of ticker calculated, flip back to Macro worksheet and update the table
+        
+       
+        
+        
+        Call UpdateAdjCTDOVIdxExpDetails(strFundCode, strIndexPort, strTickerSelected, dbl2y, dbl5y, dbl10y, dbl30y)
+    Next intTickerCount
+    
+    
+    
+
+
+End Sub
+
+Sub UpdateAdjCTDOVIdxExpDetails(strFundCode As String, strIndexPort, strTickerSelected As String, dbl2y As Double, dbl5y As Double, dbl10y As Double, dbl30y As Double)
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+Dim strWSSource As String
+Dim intTickerCol As Integer
+Dim intCounter As Integer
+
+
+    Application.Workbooks(strMacroFileName).Activate
+    'Update Adj_CTDOVIdxExp Index values
+    strWSSource = "Adj_CTDOVIdxExp"
+    Worksheets(strWSSource).Activate
+
+
+
+    intFirstRow = FindCountryRow(strFundCode & " start")
+    intLastRow = FindCountryRow(strFundCode & " end")
+    
+    
+    If strIndexPort = "Index" Then
+        intTickerCol = 1
+    Else
+        'Updating portfolios
+        intTickerCol = 8
+    End If
+   
+    
+    For intCounter = intFirstRow To intLastRow
+        If Cells(intCounter, intTickerCol).Value = strTickerSelected Then
+            Cells(intCounter, intTickerCol + 1).Value = dbl2y
+            Cells(intCounter, intTickerCol + 2).Value = dbl5y
+            Cells(intCounter, intTickerCol + 3).Value = dbl10y
+            Cells(intCounter, intTickerCol + 4).Value = dbl30y
+        End If
+    Next intCounter
+
+    
+    
+End Sub
+
+
+Sub ColorRow(intRow, strColor)
+    Rows(intRow & ":" & intRow).Select
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        
+        Select Case strColor
+            Case Is = "Green"
+                .Color = 5287936
+            Case Is = "Orange"
+                .Color = 49407
+            Case Else
+                .Color = 16777215
+        End Select
+
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+End Sub
+
+
+
+Sub BoldRow(intRow As Integer, bolTF As Boolean)
+Dim strRow As String
+    strRow = intRow & ":" & intRow
+    Rows(strRow).Select
+    Selection.Font.Bold = bolTF
+End Sub
+
+
+
 Sub ProcessDetailReport()
 Dim strWSName As String
 Dim intFirstRow As Integer
@@ -2053,7 +2650,7 @@ Dim intLastRow As Integer
 Dim intCounter As Integer
 Dim intTotalRow As Integer
 
-    strWSName = "Detail_Report"
+    strWSName = "Detail"
     
     If VerifyColumns(strWSName) > 0 Then
         MsgBox "Hi " & strUserName & ", I found column discrepancies in " & strWSName & " and will skip and move on to the next available worksheet"
@@ -2088,11 +2685,11 @@ Dim intTotalRow As Integer
     Cells(intFirstRow, 14).Select
     ActiveCell.FormulaR1C1 = "=(RC[-1]/RC[-2]-1)*100*RC[3]"
     
-    With Worksheets("Detail_Report").Range("M" & intFirstRow)
+    With Worksheets("Detail").Range("M" & intFirstRow)
         .AutoFill Destination:=Range("M" & intFirstRow & ":M" & intLastRow)
     End With
     
-    With Worksheets("Detail_Report").Range("N" & intFirstRow)
+    With Worksheets("Detail").Range("N" & intFirstRow)
         .AutoFill Destination:=Range("N" & intFirstRow & ":N" & intLastRow)
     End With
 
@@ -2129,6 +2726,92 @@ Dim intTotalRow As Integer
     
     strProcessedSheets = strProcessedSheets + vbCrLf + strWSName
 End Sub
+
+
+Sub ProcessDetail2Report()
+Dim strWSName As String
+Dim intFirstRow As Integer
+Dim intLastRow As Integer
+Dim intCounter As Integer
+Dim intTotalRow As Integer
+
+    strWSName = "Detail2"
+    
+    If VerifyColumns(strWSName) > 0 Then
+        MsgBox "Hi " & strUserName & ", I found column discrepancies in " & strWSName & " and will skip and move on to the next available worksheet"
+        Exit Sub
+    End If
+
+    Worksheets(strWSName).Activate
+    'Add PX_BID column and cookie column
+    
+    Columns("N:N").Select
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    Selection.Insert Shift:=xlToRight, CopyOrigin:=xlFormatFromLeftOrAbove
+    
+    intFirstRow = FindFirstRow(3)
+    'MsgBox intFirstRow
+    
+    intLastRow = FindLastRow(3, intLastRowConst)
+    
+    'Range("M26").Select
+    Cells(intFirstRow, 14).Select
+    ActiveCell.FormulaR1C1 = "PX_BID"
+    
+    'Range("N26").Select
+    Cells(intFirstRow, 15).Select
+    ActiveCell.FormulaR1C1 = "Cookie"
+    
+    intFirstRow = intFirstRow + 3
+    'Range("M31").Select
+    Cells(intFirstRow, 14).Select
+    ActiveCell.FormulaR1C1 = "=BDP(RC[-12]&"" ""&""CORP"", ""PX_BID"")"
+    
+    Cells(intFirstRow, 15).Select
+    ActiveCell.FormulaR1C1 = "=(RC[-1]/RC[-2]-1)*100*RC[3]"
+    
+    With Worksheets(strWSName).Range("N" & intFirstRow)
+        .AutoFill Destination:=Range("N" & intFirstRow & ":N" & intLastRow)
+    End With
+    
+    With Worksheets(strWSName).Range("O" & intFirstRow)
+        .AutoFill Destination:=Range("O" & intFirstRow & ":O" & intLastRow)
+    End With
+
+    'Remove formulas where ISIN is blank or starts with CASH or TREASURY BILL
+    For intCounter = intFirstRow To intLastRow
+        If (Cells(intCounter, 2).Value = "" Or Left(Cells(intCounter, 4).Value, 4) = "CASH" Or Left(Cells(intCounter, 4).Value, 13) = "TREASURY BILL") Then
+            Cells(intCounter, 14).Value = ""
+            Cells(intCounter, 15).Value = ""
+        End If
+    Next intCounter
+    
+    intTotalRow = FindLastRow(22, intLastRowConst)
+    'Handle futures: 2Yr Futures Formula + ISIN handling
+    For intCounter = intFirstRow To intLastRow
+        If Left(Cells(intCounter, 4).Value, 4) = "UST " Then
+            Cells(intCounter, 14).Select
+            ActiveCell.FormulaR1C1 = "=BDP(RIGHT(RC[-12],LEN(RC[-12])-4) &"" COMDTY"", ""PX_BID"")"
+            
+            If Left(Cells(intCounter, 4).Value, 8) = "UST 2-YR" Then
+                Cells(intCounter, 18).Select
+                ActiveCell.Formula = "=(X" & intCounter & ") * 2000000 /" & "X" & intTotalRow & "/10 * M" & intCounter
+            Else
+                Cells(intCounter, 18).Select
+                ActiveCell.Formula = "=(X" & intCounter & ") * 1000000 /" & "X" & intTotalRow & "/10 * M" & intCounter
+            End If
+        End If
+    Next intCounter
+    
+    With Worksheets(strWSName).Tab
+        .Color = 12611584 'Blue
+        '.Color = xlAutomatic
+        .TintAndShade = 0
+    End With
+    
+    strProcessedSheets = strProcessedSheets + vbCrLf + strWSName
+End Sub
+
 
 
 Sub ProcessDBCTDOVYTWIndexExp()
@@ -2319,10 +3002,6 @@ Dim dblRowSum As Double
     strProcessedSheets = strProcessedSheets + vbCrLf + strWSName
 
 End Sub
-
-
-
-
 
 
 Sub ProcessDBCTDOVIndexExp()
@@ -2550,7 +3229,7 @@ Dim intCountryCount As Integer
 End Sub
 
 
-Sub ManualSectorReportOverride(strWSName As String)
+Sub ManualSectorReportOverride(strWSName As String, strFundCode As String)
 Dim intLastCol As Integer
 Dim intFirstRow As Integer
 Dim intLastRow As Integer
@@ -2560,10 +3239,11 @@ Dim intAdjRow As Integer
 Dim intSectorRow As Integer
 Dim i As Integer
 Dim j As Integer
-
+Dim intFundBlockRow As Integer
 
     intLastCountryRow = FindCountryRow("OIL_GAS Subtotal")
     intSectorRow = FindLastRow(1, intLastCountryRow)
+    
     
     'Copy Oil & Gas Block
     Call CopyBlock("A" & intSectorRow & ":Q" & intLastCountryRow, "S" & intSectorRow, "Y")
@@ -2572,14 +3252,30 @@ Dim j As Integer
     Application.Workbooks(strMacroFileName).Activate
     Worksheets("Adj_SectorReport").Activate
     
-    'Copy Index Block
-    Cells(1, 1).Select
-    intLastCol = 17
-    intLastRow = 3
+    'Copy Index Block (Enhanced to take note of fund specific settings)
+    intFundBlockRow = FindCountryRow(strFundCode & " start") + 1
     
-    Range("A1:" & colLtr(intLastCol) & intLastRow).Select
+    If intGoodFile = 1 Then
+        Exit Sub
+    End If
+    Cells(intFundBlockRow, 1).Select
+    intLastCol = FindLastColReversed(intLastColConst, intFundBlockRow + 1)
+    'intLastRow = FindLastRow(intLastCol, intLastRowConst)
+    intLastRow = FindCountryRow(strFundCode & " end") - 1
+    
+    Range("A" & intFundBlockRow & ":" & colLtr(intLastCol) & intLastRow).Select
     
     Selection.Copy
+    
+    
+    
+'    Cells(1, 1).Select
+'    intLastCol = 17
+'    intLastRow = 3
+'
+'    Range("A1:" & colLtr(intLastCol) & intLastRow).Select
+'
+'    Selection.Copy
     
     Application.Workbooks(strPTFileName).Activate
     Worksheets(strWSName).Activate
@@ -2687,18 +3383,18 @@ Dim dblFieldRetrieve As Double
     For intCounter = intFirstRow + 1 To intLastRow - 1 '160 to 162
         'Go to Issuer Report, identify HK rows, pick up MV% and YTW for the selected securities
         'Retrieval of MV% of various indices
-        dblFieldRetrieve = OVFieldRetrieve("Issuer_Report", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 3)
+        dblFieldRetrieve = OVFieldRetrieve("Issuer", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 3)
         Worksheets(strWSName).Activate
         Cells(intCounter, intLastCol + 1).Value = dblFieldRetrieve
         
         'Retrieval of YTW of various indices
-        dblFieldRetrieve = OVFieldRetrieve("Issuer_Report", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 9)
+        dblFieldRetrieve = OVFieldRetrieve("Issuer", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 9)
         Worksheets(strWSName).Activate
         Cells(intCounter, intLastCol + 2).Value = dblFieldRetrieve
         
         
         'Retrieval of CTSD of various indices
-        dblFieldRetrieve = OVFieldRetrieve("Issuer_Report", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 18)
+        dblFieldRetrieve = OVFieldRetrieve("Issuer", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 18)
         Worksheets(strWSName).Activate
         Cells(intCounter, intLastCol + 3).Value = dblFieldRetrieve
     Next intCounter
@@ -2775,18 +3471,18 @@ Dim dblFieldRetrieve As Double
     For intCounter = intFirstRow + 1 To intLastRow - 1 '166 to 167
         'Go to Issuer Report, identify HK rows, pick up MV% and YTW for the selected securities
         'Retrieval of MV% of various portfolio
-        dblFieldRetrieve = OVFieldRetrieve("Issuer_Report", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 4)
+        dblFieldRetrieve = OVFieldRetrieve("Issuer", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 4)
         Worksheets(strWSName).Activate
         Cells(intCounter, intLastCol + 1).Value = dblFieldRetrieve
         
         'Retrieval of YTW of various portfolio
-        dblFieldRetrieve = OVFieldRetrieve("Issuer_Report", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 10)
+        dblFieldRetrieve = OVFieldRetrieve("Issuer", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 10)
         Worksheets(strWSName).Activate
         Cells(intCounter, intLastCol + 2).Value = dblFieldRetrieve
         
         
         'Retrieval of CTSD of various indices
-        dblFieldRetrieve = OVFieldRetrieve("Issuer_Report", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 19)
+        dblFieldRetrieve = OVFieldRetrieve("Issuer", Cells(intCounter, 2).Value, "Hong Kong Subtotal", 2, 19)
         Worksheets(strWSName).Activate
         Cells(intCounter, intLastCol + 3).Value = dblFieldRetrieve
     Next intCounter
@@ -3666,6 +4362,14 @@ Function FindLastRow(intCol As Integer, intRow As Integer) As Integer
     FindLastRow = ActiveCell.Row
 End Function
 
+Function FindLastRowReversed(intCol As Integer, intRow As Integer) As Integer
+    
+    Cells(intRow, intCol).Select
+    Selection.End(xlDown).Select
+    FindLastRowReversed = ActiveCell.Row
+End Function
+
+
 Function FindLastCol(intCol As Integer, intRow As Integer) As Integer
     
     Cells(intRow, intCol).Select
@@ -3704,12 +4408,13 @@ Sub RemoveUnusedWorksheet()
         Exit Sub
     End If
 
-    HideWorksheet ("DurbuckRiskM_Report")
-    HideWorksheet ("DurbuckCTDOVSec_Report")
-    HideWorksheet ("DurbuckCTDOV_Report")
-    HideWorksheet ("DurbuckCTDOVYTW_Report")
-    HideWorksheet ("DurbuckCTD_Report")
-    HideWorksheet ("CTDbucketCCY_Report")
+    'HideWorksheet ("Detail")
+    HideWorksheet ("DurbuckRiskM")
+    HideWorksheet ("DurbuckCTDOVSec")
+    HideWorksheet ("DurbuckCTDOV")
+    HideWorksheet ("DurbuckCTDOVYTW")
+    HideWorksheet ("DurbuckCTD")
+    HideWorksheet ("CTDbucketCCY")
     
     If intGoodFile = 1 Then
         MsgBox "Hi " & strUserName & ", this PT report does not contain the expected worksheets from the MGF_<FUNDNAME>_POINT report book"
@@ -3769,6 +4474,8 @@ For Each wb2 In Application.Workbooks
             strPTFileName = wb2.Name
         ElseIf strWBName = "jaci" Then
             strJaciFileName = wb2.Name
+        ElseIf strWBName = "JPM_JACI" Then
+            strJaciFileName = wb2.Name
         End If
     End If
 Next
@@ -3813,7 +4520,7 @@ For Each wb2 In Application.Workbooks
         'MsgBox Wb2.Name
         If strPTFile1 = "" Then
             strPTFile1 = wb2.Name
-            Worksheets("Detail_Report").Activate
+            Worksheets("Detail2").Activate
             strFund1 = Cells(FindCountryRow("Account"), 2).Value
             intKey = FindCountryRow("Cookie")
             If intGoodFile = 1 Then
@@ -3823,7 +4530,7 @@ For Each wb2 In Application.Workbooks
             End If
         Else
             strPTFile2 = wb2.Name
-            Worksheets("Detail_Report").Activate
+            Worksheets("Detail2").Activate
             strFund2 = Cells(FindCountryRow("Account"), 2).Value
             intKey = FindCountryRow("Cookie")
             If intGoodFile = 1 Then
@@ -3855,6 +4562,50 @@ ElseIf intWb = 1 Then
     intGoodFile = 1
 ElseIf intWb > 2 Then
     MsgBox ("Hi " & ", this macro is expecting only 2 processed PT data files at this time, please close off all other PT data files")
+    intGoodFile = 1
+End If
+
+
+'MsgBox ("Macro File is: " & strMacroFileName & vbCrLf & "PT File 1 is: " & strPTFile1 & vbCrLf & "PT File 2 is: " & strPTFile2)
+
+
+'Wb.Activate
+End Sub
+
+
+
+Sub SwitchWBDash()
+Dim WB As Workbook
+Dim wb2 As Workbook
+Dim intWb As Integer
+Dim intKey As Integer
+
+
+Set WB = ThisWorkbook
+intWb = 0
+intGoodFile = 0
+
+strMacroFileName = WB.Name
+
+
+For Each wb2 In Application.Workbooks
+'Switch through all workbooks and identify workbook with tab name Dashboard
+'File name of dashboard file collected here
+
+
+    If wb2.Worksheets(1).Name = "Dashboard" Then
+        intWb = intWb + 1
+        wb2.Activate
+        strDashFileName = wb2.Name
+    End If
+Next
+
+
+If intWb = 0 Then
+    MsgBox ("Hi " & strUserName & ", I am unable to find any opened workbooks with the first worksheet as Dashboard :(  Could you open the Dashboard workbook and run this macro please?")
+    intGoodFile = 1
+ElseIf intWb > 1 Then
+    MsgBox ("Hi " & strUserName & ", this macro is expecting only 1 file with the Dashboard worksheet.  Please close off 1 of them and run this macro again")
     intGoodFile = 1
 End If
 
